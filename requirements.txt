@@ -1,0 +1,4 @@
+argcomplete
+attrs
+numpy
+pytest
