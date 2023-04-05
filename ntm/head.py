@@ -90,8 +90,8 @@ class NTMReadHead(NTMHeadBase):
         
         # Read from memory
         w = self._address_memory(k, beta, g, s, gamma, w_prev)
-        r = self.memory.read(w)
-        
+        r_ = self.memory.read(w)
+        r = r_.clone()
         return r, w
     
 class NTMWriteHead(NTMHeadBase):

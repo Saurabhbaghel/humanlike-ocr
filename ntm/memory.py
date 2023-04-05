@@ -40,12 +40,13 @@ class NTMMemory(nn.Module):
     def size(self):
         return self.N, self.M
     
-    def read(self, w:torch.Tensor):
+    def read(self, w_:torch.Tensor):
         """_summary_
 
         Args:
-            w (torch.Tensor): _description_
+            w_ (torch.Tensor): _description_
         """
+        w = w_.clone()
         return torch.matmul(w.unsqueeze(1), self.memory).squeeze(1)
     
     def write(self, w, e, a):

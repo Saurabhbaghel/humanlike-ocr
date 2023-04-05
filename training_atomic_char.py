@@ -119,7 +119,7 @@ loss_fn = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(ntmcell.parameters(), lr=0.001, momentum=0.9) 
  
 # training loop for one epoch
-def train_one_epoch(epoch_index, prev_state ,tb_writer):
+def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.0
     last_loss = 0.0
     
@@ -129,8 +129,12 @@ def train_one_epoch(epoch_index, prev_state ,tb_writer):
         # zero gradients for every batch
         optimizer.zero_grad()
         
+        #resetting the memory for new epoch
+        memory.reset(BATCH_SIZE)
+        prev_state = ntmcell.create_new_state(BATCH_SIZE)
+        
         # make predictions for this batch
-        outputs, prev_state = ntmcell(inputs, prev_state)
+        outputs, _ = ntmcell(inputs, prev_state)
         outputs = outputs.type(torch.float)
         # pred_label = torch.argmax(outputs,dim=1)
         # compute the loss and its gradients
@@ -139,6 +143,9 @@ def train_one_epoch(epoch_index, prev_state ,tb_writer):
         loss = loss_fn(outputs, labels)
         loss.backward()
         
+        parameters = list(filter(lambda p: p.grad is not None, ntmcell.parameters()))
+        for p in parameters:
+            p.grad.data.clamp_(-10, 10)
         # adjust the learning rate
         optimizer.step()
         
@@ -166,12 +173,10 @@ best_vloss = 1_000_000.
 for epoch in range(EPOCHS):
     print("EPOCH {}".format(epoch_number + 1))
     
-    #resetting the memory for new epoch
-    memory.reset(BATCH_SIZE)
-    prev_state = ntmcell.create_new_state(BATCH_SIZE)
+
     
     ntmcell.train(True)
-    avg_loss = train_one_epoch(epoch_number, prev_state, writer)
+    avg_loss = train_one_epoch(epoch_number, writer)
     
     ntmcell.train(False)
     
