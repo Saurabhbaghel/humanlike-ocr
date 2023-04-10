@@ -17,7 +17,9 @@ class LSTMController(nn.Module):
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.num_layers = num_layers
-        
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
         self.lstm = nn.LSTM(
             input_size = num_inputs,
             hidden_size = num_outputs,
@@ -32,8 +34,8 @@ class LSTMController(nn.Module):
         
     def create_new_state(self, batch_size):
         # Dimension: (num_layers * num_directions, batch, hidden_size)
-        lstm_h = self.lstm_h_bias.clone().repeat(1, batch_size, 1)
-        lstm_c = self.lstm_c_bias.clone().repeat(1, batch_size, 1)
+        lstm_h = self.lstm_h_bias.clone().repeat(1, batch_size, 1).to(self.device_)
+        lstm_c = self.lstm_c_bias.clone().repeat(1, batch_size, 1).to(self.device_)
         return lstm_h, lstm_c
     
     def reset_parameters(self):
