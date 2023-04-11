@@ -12,7 +12,8 @@ class NTM(nn.Module):
         self.controller = controller
         self.memory = memory
         self.heads = heads
-        
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
         self.N, self.M = memory.size()
         _, self.controller_size = controller.size()    ######
         
@@ -33,7 +34,7 @@ class NTM(nn.Module):
         self.reset_parameters()
         
     def create_new_state(self, batch_size):
-        init_r  = [r.clone().repeat(batch_size, 1) for r in self.init_r]
+        init_r  = [r.clone().repeat(batch_size, 1).to(self.device_) for r in self.init_r]
         controller_state = self.controller.create_new_state(batch_size)
         heads_state = [head.create_new_state(batch_size) for head in self.heads]
         return init_r, controller_state, heads_state

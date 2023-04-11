@@ -20,20 +20,21 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 
 torch.autograd.set_detect_anomaly(True)
+device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 N, M = 120, 120
 
 num_inputs = 80
 num_outputs = 37
-num_layers = 2
+num_layers = 4
 
 controller_size = 37
-num_heads = 1
+num_heads = 2
 
 # num_inputs + M * num_heads
 
 # getting the features index
-features_= pd.read_csv("data/final_80_features.csv")
+features_= pd.read_csv("/content/humanlike-ocr/data/final_80_features.csv")
 feats = features_.columns[:-1]
 feats_idx = np.array(feats).astype(np.int32)
 
@@ -58,7 +59,7 @@ class AtomicCharsDataset(Dataset):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.target_transform = target_transform
         self.feature_extractor_ = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')
-        self.feature_extractor = nn.Sequential(*list(self.feature_extractor_.children())[:-1]).to(device)
+        self.feature_extractor = nn.Sequential(*list(self.feature_extractor_.children())[:-1]).to(device_)
         
     def __len__(self):
         return len(self.image_labels)
@@ -66,7 +67,7 @@ class AtomicCharsDataset(Dataset):
     def __getitem__(self, index):
         img_path = os.path.join(self.img_dir, self.image_labels.iloc[index, 0])
         image = read_image(img_path)
-        image = self.transforms(image)
+        image = self.transforms(image).to(device_)
         features = self.feature_extractor(image.unsqueeze(0)).squeeze()
         label = self.image_labels.iloc[index, 1]
         if self.target_transform:
@@ -74,49 +75,57 @@ class AtomicCharsDataset(Dataset):
         return features[feats_idx], label
     
 # reading the label csv
-data = pd.read_csv("/media/ashatya/Data/work/self/thesis/humanlike-ocr/data/annotations_atomic_char_5iter.csv")
+data = pd.read_csv("/content/humanlike-ocr/data/annotations_atomic_char_5iter.csv")
 
 # splitting the data into training and validation
 training_data, val_data = train_test_split(data, test_size=0.3, train_size=0.7, random_state=4340, shuffle=True) 
 
 # names of the files/folders
-img_dir = "data/atomic_char"
-ann_train = "train.csv"
-ann_val = "val.csv"
+img_dir = "/content/humanlike-ocr/data/atomic_char"
+ann_train = "/content/humanlike-ocr/train.csv"
+ann_val = "/content/humanlike-ocr/val.csv"
 
 # creating training dataset and validation dataset
 train_dataset = AtomicCharsDataset(ann_train, img_dir, None)
 val_dataset = AtomicCharsDataset(ann_val, img_dir, None)
 
-BATCH_SIZE = 2
+BATCH_SIZE = 4
 
 # making the dataloader for both set of points
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE)
 val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
- 
+
 
 # Preparing the model for training
 controller = LSTMController(num_inputs + M*num_heads, num_outputs, num_layers)
+controller.to(device_)
 memory = NTMMemory(N, M)
+memory.to(device_)
 read_head = NTMReadHead(memory, controller_size)
+read_head.to(device_)
 write_head = NTMWriteHead(memory, controller_size)
+write_head.to(device_)
 
 heads = nn.ModuleList([])
 
 for i in range(num_heads):
     heads += [
-        NTMReadHead(memory, controller_size),
-        NTMWriteHead(memory, controller_size)
+        read_head,
+        write_head
     ]
     
 # instantiating the model  
 ntmcell = NTM(num_inputs, num_outputs, controller, memory, heads)
+
+
+ntmcell.to(device_)
+
  
 # defining the loss function
 loss_fn = torch.nn.CrossEntropyLoss()
 
 # defining the optimizer 
-optimizer = torch.optim.SGD(ntmcell.parameters(), lr=0.001, momentum=0.9) 
+optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
  
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
@@ -124,7 +133,7 @@ def train_one_epoch(epoch_index, tb_writer):
     last_loss = 0.0
     
     for  i, data in enumerate(train_dataloader):
-        inputs, labels = data
+        inputs, labels = data[0].to(device_), data[1].to(device_)
         
         # zero gradients for every batch
         optimizer.zero_grad()
@@ -161,11 +170,11 @@ def train_one_epoch(epoch_index, tb_writer):
     return last_loss
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-writer = SummaryWriter("runs/atom_trainer_{}".format(timestamp))
+writer = SummaryWriter("/content/humanlike-ocr/runs/atom_trainer_{}".format(timestamp))
 
 epoch_number = 0
 
-EPOCHS = 5
+EPOCHS = 100
 
 best_vloss = 1_000_000.
 
@@ -183,7 +192,7 @@ for epoch in range(EPOCHS):
     vprev_state = ntmcell.create_new_state(BATCH_SIZE)
     running_vloss = 0.0
     for i, vdata in enumerate(val_dataloader):
-        vinputs, vlabels = vdata
+        vinputs, vlabels = vdata[0].to(device_), vdata[1].to(device_)
         voutputs, vprev_state = ntmcell(vinputs, vprev_state)
         voutputs = voutputs.type(torch.float)
         vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)

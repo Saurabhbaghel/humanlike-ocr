@@ -20,7 +20,8 @@ class NTMHeadBase(nn.Module):
         self.memory = memory
         self.N, self.M = memory.size()
         self.controller_size = controller_size
-        
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     def create_new_state(self, batch_size):
         raise NotImplementedError
     
@@ -64,7 +65,7 @@ class NTMReadHead(NTMHeadBase):
         
     def create_new_state(self, batch_size):
         # the state holds the previous time step address weightings
-        return torch.zeros(batch_size, self.N)
+        return torch.zeros(batch_size, self.N).to(self.device_)
     
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.fc_read.weight, gain=1.4)
@@ -103,7 +104,7 @@ class NTMWriteHead(NTMHeadBase):
         self.reset_parameters()
         
     def create_new_state(self, batch_size):
-        return torch.zeros(batch_size, self.N)
+        return torch.zeros(batch_size, self.N).to(self.device_)
     
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.fc_write.weight, gain=1.4)
