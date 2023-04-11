@@ -21,7 +21,9 @@ class NTMMemory(nn.Module):
         
         self.N = N
         self.M = M
-    
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
         self.register_buffer("mem_bias", torch.Tensor(N, M))
         
         # initialize memory bias
@@ -71,17 +73,17 @@ class NTMMemory(nn.Module):
             w (_type_): weight at time t
         """
         # content focus
-        wc = self._similarity(k, beta)
+        wc = self._similarity(k, beta).to(self.device_)
         
         # location focus
-        wg = self._interpolate(w_prev, wc, g)
-        w_hat = self._shift(wg, s)    # convolutional shift
-        w = self._sharpen(w_hat, gamma)
+        wg = self._interpolate(w_prev, wc, g).to(self.device_)
+        w_hat = self._shift(wg, s).to(self.device_)    # convolutional shift
+        w = self._sharpen(w_hat, gamma).to(self.device_)
         return w
     
     def _similarity(self, k, beta):
-        k = k.view(self.batch_size, 1, -1)
-        w = F.softmax(beta * F.cosine_similarity(self.memory + 1e-16, k+1e-16, dim=-1), dim=1)
+        k = k.view(self.batch_size, 1, -1).to(self.device_)
+        w = F.softmax(beta * F.cosine_similarity(self.memory + 1e-16, k+1e-16, dim=-1), dim=1).to(self.device_)
         return w
     
     def _interpolate(self, w_prev, wc, g):
