@@ -1,4 +1,4 @@
-import os
+import os, sys
 from datetime import datetime
 
 from torch.utils.tensorboard import SummaryWriter
@@ -18,6 +18,10 @@ from torchvision.io.image import read_image
 import torchvision.transforms as transforms
 from sklearn.model_selection import train_test_split
 import pandas as pd
+
+
+path_csv_labels, training_csv_path, val_csv_path, user_batch_size = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
 
 torch.autograd.set_detect_anomaly(True)
 device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -74,22 +78,39 @@ class AtomicCharsDataset(Dataset):
             label = self.target_transform(label)
         return features[feats_idx], label
     
+
 # reading the label csv
-data = pd.read_csv("/content/humanlike-ocr/data/annotations_atomic_char_5iter.csv")
+if path_csv_labels is None or not isinstance(path_csv_labels, str):
+    raise ValueError(f"{path_csv_labels} is not a path to the label csv.")
+else:
+    data = pd.read_csv(path_csv_labels) # old csv with fewer images  pd.read_csv("/content/humanlike-ocr/data/annotations_atomic_char_5iter.csv")
 
 # splitting the data into training and validation
 training_data, val_data = train_test_split(data, test_size=0.3, train_size=0.7, random_state=4340, shuffle=True) 
 
+assert isinstance(training_csv_path, str)
+assert isinstance(val_csv_path, str)
+
+
+if not os.path.exists(training_csv_path):
+    training_data.to_csv(training_csv_path, index=False)
+if not os.path.exists(val_csv_path):
+    val_data.to_csv(val_csv_path, index=False)
+    
 # names of the files/folders
 img_dir = "/content/humanlike-ocr/data/atomic_char"
-ann_train = "/content/humanlike-ocr/train.csv"
-ann_val = "/content/humanlike-ocr/val.csv"
+ann_train = training_csv_path
+ann_val = val_csv_path
 
 # creating training dataset and validation dataset
 train_dataset = AtomicCharsDataset(ann_train, img_dir, None)
 val_dataset = AtomicCharsDataset(ann_val, img_dir, None)
 
-BATCH_SIZE = 4
+BATCH_SIZE = 4 
+
+assert len(train_dataset) % BATCH_SIZE == 0, "batch size should divide length of the train dataset."
+assert len(val_dataset) % BATCH_SIZE == 0, "batch size should divide length of the val dataset."
+
 
 # making the dataloader for both set of points
 train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE)
@@ -189,16 +210,17 @@ for epoch in range(EPOCHS):
     
     ntmcell.train(False)
     
-    vprev_state = ntmcell.create_new_state(BATCH_SIZE)
-    running_vloss = 0.0
-    for i, vdata in enumerate(val_dataloader):
-        vinputs, vlabels = vdata[0].to(device_), vdata[1].to(device_)
-        voutputs, vprev_state = ntmcell(vinputs, vprev_state)
-        voutputs = voutputs.type(torch.float)
-        vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
-        vlabels = vlabels.type(torch.float)
-        vloss = loss_fn(voutputs, vlabels)
-        running_vloss += vloss
+    with torch.no_grad():
+        vprev_state = ntmcell.create_new_state(BATCH_SIZE)
+        running_vloss = 0.0
+        for i, vdata in enumerate(val_dataloader):
+            vinputs, vlabels = vdata[0].to(device_), vdata[1].to(device_)
+            voutputs, vprev_state = ntmcell(vinputs, vprev_state)
+            voutputs = voutputs.type(torch.float)
+            vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
+            vlabels = vlabels.type(torch.float)
+            vloss = loss_fn(voutputs, vlabels)
+            running_vloss += vloss
     
     avg_vloss = running_vloss / (i + 1)
     print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
