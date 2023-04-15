@@ -20,7 +20,7 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 
 
-path_csv_labels, training_csv_path, val_csv_path, user_batch_size = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+path_csv_labels, training_csv_path, user_img_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 
 
 torch.autograd.set_detect_anomaly(True)
@@ -88,8 +88,11 @@ else:
 # splitting the data into training and validation
 training_data, val_data = train_test_split(data, test_size=0.3, train_size=0.7, random_state=4340, shuffle=True) 
 
-assert isinstance(training_csv_path, str)
-assert isinstance(val_csv_path, str)
+# assert isinstance(training_csv_path, str)
+# assert isinstance(val_csv_path, str)
+
+training_csv_path = os.path.join("/content/humanlike-ocr/data",f"training_{len(training_data)}.csv")
+val_csv_path = os.path.join("/content/humanlike-ocr/data", f"val_{len(val_data)}.csv")
 
 
 if not os.path.exists(training_csv_path):
@@ -98,7 +101,7 @@ if not os.path.exists(val_csv_path):
     val_data.to_csv(val_csv_path, index=False)
     
 # names of the files/folders
-img_dir = "/content/humanlike-ocr/data/atomic_char"
+img_dir = user_img_dir
 ann_train = training_csv_path
 ann_val = val_csv_path
 
@@ -106,7 +109,7 @@ ann_val = val_csv_path
 train_dataset = AtomicCharsDataset(ann_train, img_dir, None)
 val_dataset = AtomicCharsDataset(ann_val, img_dir, None)
 
-BATCH_SIZE = 4 
+BATCH_SIZE = int(user_batch_size)
 
 assert len(train_dataset) % BATCH_SIZE == 0, "batch size should divide length of the train dataset."
 assert len(val_dataset) % BATCH_SIZE == 0, "batch size should divide length of the val dataset."
