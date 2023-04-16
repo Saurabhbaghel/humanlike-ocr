@@ -20,7 +20,7 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 
 
-path_csv_labels, training_csv_path, user_img_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+path_csv_labels, user_batch_size, user_img_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 
 
 torch.autograd.set_detect_anomaly(True)
