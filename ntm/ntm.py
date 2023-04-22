@@ -90,6 +90,6 @@ class NTM(nn.Module):
         # Pack the current state
         state = (reads, controller_state, heads_states)
         
-        return o, state
+        return F.softmax(o), state
     
         
