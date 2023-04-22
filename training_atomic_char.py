@@ -76,6 +76,8 @@ class AtomicCharsDataset(Dataset):
         label = self.image_labels.iloc[index, 1]
         if self.target_transform:
             label = self.target_transform(label)
+            
+        label = torch.nn.functional.one_hot(label, num_classes=37)
         return features[feats_idx], label
     
 
@@ -146,7 +148,7 @@ ntmcell.to(device_)
 
  
 # defining the loss function
-loss_fn = torch.nn.CrossEntropyLoss()
+loss_fn = torch.nn.BCELoss() #torch.nn.CrossEntropyLoss()
 
 # defining the optimizer 
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
@@ -171,7 +173,7 @@ def train_one_epoch(epoch_index, tb_writer):
         outputs = outputs.type(torch.float)
         # pred_label = torch.argmax(outputs,dim=1)
         # compute the loss and its gradients
-        labels = torch.nn.functional.one_hot(labels, num_classes=37)
+        # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
         loss = loss_fn(outputs, labels)
         loss.backward()
