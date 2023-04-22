@@ -47,7 +47,7 @@ feats_idx = np.array(feats).astype(np.int32)
 class AtomicCharsDataset(Dataset):
     def __init__(
         self, 
-        annotations_file:pd.DataFrame,
+        annotations_file:str,
         img_dir:str, 
         target_transform:None
         ) -> None:
@@ -77,7 +77,7 @@ class AtomicCharsDataset(Dataset):
         if self.target_transform:
             label = self.target_transform(label)
             
-        label = torch.nn.functional.one_hot(label, num_classes=37)
+        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=37)
         return features[feats_idx], label
     
 
@@ -221,8 +221,8 @@ for epoch in range(EPOCHS):
         for i, vdata in enumerate(val_dataloader):
             vinputs, vlabels = vdata[0].to(device_), vdata[1].to(device_)
             voutputs, vprev_state = ntmcell(vinputs, vprev_state)
-            voutputs = voutputs.type(torch.float)
-            vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
+            # voutputs = voutputs.type(torch.float)
+            # vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
             vlabels = vlabels.type(torch.float)
             vloss = loss_fn(voutputs, vlabels)
             running_vloss += vloss
