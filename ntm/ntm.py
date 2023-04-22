@@ -34,6 +34,17 @@ class NTM(nn.Module):
         self.reset_parameters()
         
     def create_new_state(self, batch_size):
+        """
+        Creates a new state for the NTM.
+        Initializes the Read state, Controller state, state of the heads.
+        Do not confuse the Read state with the state of Read head
+
+        Args:
+            batch_size (int): size of the batch
+
+        Returns:
+            tuple[list[torch.Tensor], tuple[torch.Tensor], list[Tensor]]: Returns the newly created states of the above mentioned components
+        """
         init_r  = [r.clone().repeat(batch_size, 1).to(self.device_) for r in self.init_r]
         controller_state = self.controller.create_new_state(batch_size)
         heads_state = [head.create_new_state(batch_size) for head in self.heads]
@@ -44,7 +55,16 @@ class NTM(nn.Module):
         nn.init.normal_(self.fc.bias, std=0.01)
         
     def forward(self, x, prev_state):
+        """ 
         
+
+        Args:
+            x (_type_): _description_
+            prev_state (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         # unpack previous states
         prev_reads, prev_controller_state, prev_heads_states = prev_state
         
@@ -65,7 +85,7 @@ class NTM(nn.Module):
             
         # Generate Output 
         inp2 = torch.cat([controller_outp] + reads, dim=1)
-        o = torch.sigmoid(self.fc(inp2))
+        o =  self.fc(inp2) #torch.sigmoid(self.fc(inp2))
         
         # Pack the current state
         state = (reads, controller_state, heads_states)
