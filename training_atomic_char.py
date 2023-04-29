@@ -8,14 +8,16 @@ import torch.nn as nn
 import torchvision as tv
 import cv2 as cv
 from ntm.ntm import NTM
-from ntm.controller import LSTMController
+from ntm.controller import LSTMController, FeedforwardController
 from ntm.head import NTMWriteHead, NTMReadHead
 from ntm.memory import NTMMemory
 from ntm.encapsulated import EncapsulatedNTM
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
 from torchvision.io.image import read_image
 import torchvision.transforms as transforms
+from torchmetrics.classification import MulticlassAccuracy
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
@@ -28,7 +30,7 @@ device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 N, M = 120, 120
 
-num_inputs = 80
+num_inputs = 2048
 num_outputs = 37
 num_layers = 4
 
@@ -79,6 +81,7 @@ class AtomicCharsDataset(Dataset):
             
         label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=37)
         return features[feats_idx], label
+        # return features, label
     
 
 # reading the label csv
@@ -123,7 +126,8 @@ val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
 
 # Preparing the model for training
-controller = LSTMController(num_inputs + M*num_heads, num_outputs, num_layers)
+# controller = LSTMController(num_inputs + M*num_heads, num_outputs, num_layers)
+controller = FeedforwardController(num_inputs + M*num_heads, num_layers)
 controller.to(device_)
 memory = NTMMemory(N, M)
 memory.to(device_)
@@ -143,24 +147,29 @@ for i in range(num_heads):
 # instantiating the model  
 ntmcell = NTM(num_inputs, num_outputs, controller, memory, heads)
 
-
 ntmcell.to(device_)
 
- 
 # defining the loss function
 loss_fn = torch.nn.BCELoss() #torch.nn.CrossEntropyLoss()
 
 # defining the optimizer 
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
- 
+
+# defining accuracy
+acc = MulticlassAccuracy(num_classes=37).to(device_)
+
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.0
     last_loss = 0.0
     
+    # memory.reset(BATCH_SIZE)
+
+    
     for  i, data in enumerate(train_dataloader):
         inputs, labels = data[0].to(device_), data[1].to(device_)
-        
+        # print("diff of inputs ",torch.sum(inputs[34]-inputs[43]), " diff of labels",torch.sum(labels[34]-labels[43]))
+        # print(torch.sum(labels, dim=0))
         # zero gradients for every batch
         optimizer.zero_grad()
         
@@ -176,7 +185,9 @@ def train_one_epoch(epoch_index, tb_writer):
         # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
         loss = loss_fn(outputs, labels)
-        loss.backward()
+        # print("the label is ",F.sigmoid(outputs))
+        accuracy = acc(outputs, labels)
+        loss.backward(retain_graph=False)
         
         parameters = list(filter(lambda p: p.grad is not None, ntmcell.parameters()))
         for p in parameters:
@@ -186,12 +197,12 @@ def train_one_epoch(epoch_index, tb_writer):
         
         # gathering data and report
         running_loss += loss.item()
-        if i % 10 == 9:
-            last_loss = running_loss / 10
-            print("batch {} loss: {}".format(i+1, last_loss))
-            tb_x = epoch_index * len(train_dataloader) + i + 1
-            tb_writer.add_scalar("Loss/train", last_loss, tb_x)
-            running_loss = 0.0
+        # if i % 10 == 9:
+        last_loss = running_loss
+        print("batch {} loss: {:.3f} accuracy: {:.3f}".format(i+1, last_loss, accuracy))
+        tb_x = epoch_index * len(train_dataloader) + i + 1
+        tb_writer.add_scalar("Loss/train", last_loss, tb_x)
+        running_loss = 0.0
             
     return last_loss
 
@@ -200,7 +211,7 @@ writer = SummaryWriter("/content/humanlike-ocr/runs/atom_trainer_{}".format(time
 
 epoch_number = 0
 
-EPOCHS = 100
+EPOCHS = 10
 
 best_vloss = 1_000_000.
 
@@ -216,7 +227,8 @@ for epoch in range(EPOCHS):
     ntmcell.train(False)
     
     with torch.no_grad():
-        vprev_state = ntmcell.create_new_state(BATCH_SIZE)
+        # vprev_state = ntmcell.create_new_state(BATCH_SIZE)
+        vprev_state = ntmcell.state
         running_vloss = 0.0
         for i, vdata in enumerate(val_dataloader):
             vinputs, vlabels = vdata[0].to(device_), vdata[1].to(device_)

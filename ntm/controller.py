@@ -54,13 +54,46 @@ class LSTMController(nn.Module):
         outp, state = self.lstm(x, prev_state) 
         return outp.squeeze(0), state
     
-# class FeedforwardController(nn.Module):
-#     def __init__(self, num_inputs:int, num_outputs:int, num_layers:int) -> None:
-#         super().__init__()
-#         self.num_inputs = num_inputs
-#         self.num_outputs = num_outputs
-#         self.num_layers = num_layers
-        
-#         self.feedforward = FeedforwardModel(
-#             input_size = 
-#         )
+class FeedforwardController(nn.Module):
+    def __init__(self, num_inputs:int, num_layers:int) -> None:
+        super().__init__()
+        self.num_inputs = num_inputs
+        # self.num_outputs = num_outputs
+        self.num_layers = num_layers
+        # self.batch_size = batch_size
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # self.layer = [
+        #     nn.Conv1d(1, 1, 1, device=self.device_),
+        #     nn.LeakyReLU()
+        # ]
+        self.layers = [
+            nn.Linear(80, 100),
+            nn.ReLU(),
+            nn.Linear(100, 200),
+            nn.ReLU(),
+            nn.Linear(200, 300),
+            nn.ReLU(),
+            nn.Linear(300, 200),
+            nn.ReLU(),
+            nn.Linear(200, 80),
+            nn.ReLU()
+        ]
+        for layer_ in self.layers[::2]:
+            nn.init.kaiming_normal_(layer_.weight)
+
+        self.feedforward = nn.ModuleList(
+            self.layers #* self.num_layers
+            )
+            # nn.LazyLinear(out_features=20, device=self.device_),
+            # nn.Linear(20, self.num_outputs, device=self.device_)
+            
+
+
+    def forward(self, x):
+        if x.ndim != 3:
+            x = x.unsqueeze(1)
+            # raise AssertionError(f"dimension of the input is {x.ndim} and shape is {x.size()}. It should be a 3d tensor.")
+        for layer in self.feedforward:
+            x = layer(x)
+        outp = x
+        return outp
