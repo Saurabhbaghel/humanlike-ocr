@@ -163,7 +163,7 @@ loss_fn = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
  
 # defining the metric
-acc = MulticlassAccuracy(37) 
+acc = MulticlassAccuracy(37).to(device_) 
  
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
