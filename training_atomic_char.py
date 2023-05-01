@@ -28,7 +28,7 @@ device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 N, M = 120, 120
 
-num_inputs = 80
+num_inputs = 240
 num_outputs = 37
 num_layers = 4
 
@@ -72,11 +72,21 @@ class AtomicCharsDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.image_labels.iloc[index, 0])
         image = read_image(img_path)
         image = self.transforms(image).to(device_)
-        features = self.feature_extractor(image.unsqueeze(0)).squeeze()
+        c, h, w = image.size()
+        slice_width = h//3
+        head, body, tail = image[:, :slice_width, :], image[:, slice_width: 2*slice_width, :], image[:, 2*slice_width: 3*slice_width]
+        stacked_ = torch.stack([head, body, tail], dim=0)
+        
+        # getting the features of the three parts of the image
+        features = self.feature_extractor(stacked_).squeeze()[:, feats_idx] # getting the top 80 features only
+        
+        # now the features which are stacked are to concatenated to get an array of the features
+        feat_list = [features[i, :] for i in range(features.size()[0])]
+        feats_catted = torch.cat(feat_list, dim=0)
         label = self.image_labels.iloc[index, 1]
         if self.target_transform:
             label = self.target_transform(label)
-        return features[feats_idx], label
+        return feats_catted, label
     
 
 # reading the label csv
