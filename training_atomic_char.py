@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision.io.image import read_image
 import torchvision.transforms as transforms
+from torchmetrics.classification import MulticlassAccuracy
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
@@ -161,6 +162,9 @@ loss_fn = torch.nn.CrossEntropyLoss()
 # defining the optimizer 
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
  
+# defining the metric
+acc = MulticlassAccuracy(37) 
+ 
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.0
@@ -181,6 +185,7 @@ def train_one_epoch(epoch_index, tb_writer):
         outputs = outputs.type(torch.float)
         # pred_label = torch.argmax(outputs,dim=1)
         # compute the loss and its gradients
+        accuracy = acc(outputs, labels)
         labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
         loss = loss_fn(outputs, labels)
@@ -196,7 +201,7 @@ def train_one_epoch(epoch_index, tb_writer):
         running_loss += loss.item()
         if i % 10 == 9:
             last_loss = running_loss / 10
-            print("batch {} loss: {}".format(i+1, last_loss))
+            print("batch {} loss: {} accuracy: {}".format(i+1, last_loss, accuracy))
             tb_x = epoch_index * len(train_dataloader) + i + 1
             tb_writer.add_scalar("Loss/train", last_loss, tb_x)
             running_loss = 0.0
