@@ -35,7 +35,7 @@ num_outputs = 37
 num_layers = 1
 
 controller_size = 37
-num_heads = 2
+num_heads = 4
 
 # num_inputs + M * num_heads
 
@@ -186,7 +186,7 @@ def train_one_epoch(epoch_index, tb_writer):
         # compute the loss and its gradients
         # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
-        acc = metric(outputs, labels)
+        acc = metric(pred_label, torch.argmax(labels, dim=1))
         loss = loss_fn(outputs, labels)
         loss.backward()
         
@@ -235,12 +235,18 @@ for epoch in range(EPOCHS):
             voutputs, vprev_state = ntmcell(vinputs, vprev_state)
             # voutputs = voutputs.type(torch.float)
             # vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
+            vpred_label = torch.argmax(voutputs,dim=1)
+            # print(pred_label)
+            # print(torch.argmax(labels,dim=1))
+            # compute the loss and its gradients
+            # labels = torch.nn.functional.one_hot(labels, num_classes=37)
+            vacc = metric(vpred_label, torch.argmax(vlabels, dim=1))
             vlabels = vlabels.type(torch.float)
             vloss = loss_fn(voutputs, vlabels)
             running_vloss += vloss
     
     avg_vloss = running_vloss / (i + 1)
-    print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
+    print("LOSS train {:.3f} valid {:.3f} val_acc {:.3f}".format(avg_loss, avg_vloss, vacc))
     
     writer.add_scalars(
         "Training vs. Validation Loss", 
