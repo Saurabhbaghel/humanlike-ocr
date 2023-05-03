@@ -85,7 +85,8 @@ class AtomicCharsDataset(Dataset):
         
         # print(features.type())
         return features, label
-    
+
+ 
 
 # reading the label csv
 if path_csv_labels is None or not isinstance(path_csv_labels, str):
@@ -241,9 +242,7 @@ for epoch in range(EPOCHS):
             # compute the loss and its gradients
             # labels = torch.nn.functional.one_hot(labels, num_classes=37)
             vacc = metric(vpred_label, torch.argmax(vlabels, dim=1))
-            vlabels = vlabels.type(torch.float)
-            vloss = loss_fn(voutputs, vlabels)
-            running_vloss += vloss
+
     
     avg_vloss = running_vloss / (i + 1)
     print("LOSS train {:.3f} valid {:.3f} val_acc {:.3f}".format(avg_loss, avg_vloss, vacc))
