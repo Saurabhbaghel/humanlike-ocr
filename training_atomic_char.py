@@ -1,6 +1,7 @@
 import os, sys
 from datetime import datetime
 
+
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import torch
@@ -16,6 +17,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision.io.image import read_image
 import torchvision.transforms as transforms
+from torchmetrics.classification import MulticlassAccuracy
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
@@ -28,12 +30,12 @@ device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 N, M = 120, 120
 
-num_inputs = 80
+num_inputs = 1976
 num_outputs = 37
-num_layers = 4
+num_layers = 1
 
 controller_size = 37
-num_heads = 2
+num_heads = 4
 
 # num_inputs + M * num_heads
 
@@ -69,17 +71,22 @@ class AtomicCharsDataset(Dataset):
         return len(self.image_labels)
     
     def __getitem__(self, index):
-        img_path = os.path.join(self.img_dir, self.image_labels.iloc[index, 0])
-        image = read_image(img_path)
-        image = self.transforms(image).to(device_)
-        features = self.feature_extractor(image.unsqueeze(0)).squeeze()
+        # img_path = os.path.join(self.img_dir, self.image_labels.iloc[index, 0])
+        # image = read_image(img_path)
+        # image = self.transforms(image).to(device_)
+        # features = self.feature_extractor(image.unsqueeze(0)).squeeze()
+        features = self.image_labels.iloc[index, 2:].astype(float).to_numpy()
+        features = torch.from_numpy(features).type(torch.float)
         label = self.image_labels.iloc[index, 1]
         if self.target_transform:
             label = self.target_transform(label)
             
         label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=37)
-        return features[feats_idx], label
-    
+        
+        # print(features.type())
+        return features, label
+
+ 
 
 # reading the label csv
 if path_csv_labels is None or not isinstance(path_csv_labels, str):
@@ -152,7 +159,10 @@ loss_fn = torch.nn.BCELoss() #torch.nn.CrossEntropyLoss()
 
 # defining the optimizer 
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
- 
+
+# defining the metric
+metric = MulticlassAccuracy(37)
+
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.0
@@ -171,10 +181,13 @@ def train_one_epoch(epoch_index, tb_writer):
         # make predictions for this batch
         outputs, _ = ntmcell(inputs, prev_state)
         outputs = outputs.type(torch.float)
-        # pred_label = torch.argmax(outputs,dim=1)
+        pred_label = torch.argmax(outputs,dim=1)
+        # print(pred_label)
+        # print(torch.argmax(labels,dim=1))
         # compute the loss and its gradients
         # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
+        acc = metric(pred_label, torch.argmax(labels, dim=1))
         loss = loss_fn(outputs, labels)
         loss.backward()
         
@@ -186,12 +199,12 @@ def train_one_epoch(epoch_index, tb_writer):
         
         # gathering data and report
         running_loss += loss.item()
-        if i % 10 == 9:
-            last_loss = running_loss / 10
-            print("batch {} loss: {}".format(i+1, last_loss))
-            tb_x = epoch_index * len(train_dataloader) + i + 1
-            tb_writer.add_scalar("Loss/train", last_loss, tb_x)
-            running_loss = 0.0
+        # if i % 10 == 9:
+        last_loss = running_loss #/ 10
+        print("batch {} loss: {:.3f} acc: {:.3f}".format(i+1, last_loss, acc))
+        tb_x = epoch_index * len(train_dataloader) + i + 1
+        tb_writer.add_scalar("Loss/train", last_loss, tb_x)
+        running_loss = 0.0
             
     return last_loss
 
@@ -223,12 +236,16 @@ for epoch in range(EPOCHS):
             voutputs, vprev_state = ntmcell(vinputs, vprev_state)
             # voutputs = voutputs.type(torch.float)
             # vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
-            vlabels = vlabels.type(torch.float)
-            vloss = loss_fn(voutputs, vlabels)
-            running_vloss += vloss
+            vpred_label = torch.argmax(voutputs,dim=1)
+            # print(pred_label)
+            # print(torch.argmax(labels,dim=1))
+            # compute the loss and its gradients
+            # labels = torch.nn.functional.one_hot(labels, num_classes=37)
+            vacc = metric(vpred_label, torch.argmax(vlabels, dim=1))
+
     
     avg_vloss = running_vloss / (i + 1)
-    print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
+    print("LOSS train {:.3f} valid {:.3f} val_acc {:.3f}".format(avg_loss, avg_vloss, vacc))
     
     writer.add_scalars(
         "Training vs. Validation Loss", 
