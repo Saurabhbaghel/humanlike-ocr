@@ -17,7 +17,7 @@ from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 from torchvision.io.image import read_image
 import torchvision.transforms as transforms
-from torchmetrics.classification import MulticlassAccuracy
+from torchmetrics.classification import MulticlassAccuracy, AveragePrecision
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
@@ -34,7 +34,7 @@ num_inputs = 2048
 num_outputs = 37
 num_layers = 4
 
-controller_size = 37
+controller_size = 2048
 num_heads = 2
 
 # num_inputs + M * num_heads
@@ -49,8 +49,8 @@ feats_idx = np.array(feats).astype(np.int32)
 class AtomicCharsDataset(Dataset):
     def __init__(
         self, 
-        annotations_file:str,
-        img_dir:str, 
+        annotations_file: str,
+        img_dir: str, 
         target_transform:None
         ) -> None:
         self.image_labels = pd.read_csv(annotations_file).reset_index(drop=True)
@@ -64,8 +64,8 @@ class AtomicCharsDataset(Dataset):
         ])
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.target_transform = target_transform
-        self.feature_extractor_ = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')
-        self.feature_extractor = nn.Sequential(*list(self.feature_extractor_.children())[:-1]).to(device_)
+        # self.feature_extractor_ = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x8d_wsl')
+        # self.feature_extractor = nn.Sequential(*list(self.feature_extractor_.children())[:-1]).to(device_)
         
     def __len__(self):
         return len(self.image_labels)
@@ -74,13 +74,13 @@ class AtomicCharsDataset(Dataset):
         img_path = os.path.join(self.img_dir, self.image_labels.iloc[index, 0])
         image = read_image(img_path)
         image = self.transforms(image).to(device_)
-        features = self.feature_extractor(image.unsqueeze(0)).squeeze()
+        # features = self.feature_extractor(image.unsqueeze(0)).squeeze()
         label = self.image_labels.iloc[index, 1]
         if self.target_transform:
             label = self.target_transform(label)
             
         label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=37)
-        return features[feats_idx], label
+        return image, label
         # return features, label
     
 
@@ -156,7 +156,8 @@ loss_fn = torch.nn.BCELoss() #torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
 
 # defining accuracy
-acc = MulticlassAccuracy(num_classes=37).to(device_)
+# acc = MulticlassAccuracy(num_classes=37).to(device_)
+metric = AveragePrecision(task="multiclass", num_classes=37)
 
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
@@ -185,8 +186,9 @@ def train_one_epoch(epoch_index, tb_writer):
         # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
         loss = loss_fn(outputs, labels)
-        # print("the label is ",F.sigmoid(outputs))
-        accuracy = acc(outputs, labels)
+        # print("the label xis ",F.sigmoid(outputs))
+        # accuracy = acc(outputs, labels)
+        avg_prec = metric(outputs, torch.argmax(labels, dim=1))
         loss.backward(retain_graph=False)
         
         parameters = list(filter(lambda p: p.grad is not None, ntmcell.parameters()))
@@ -199,20 +201,21 @@ def train_one_epoch(epoch_index, tb_writer):
         running_loss += loss.item()
         # if i % 10 == 9:
         last_loss = running_loss
-        print("batch {} loss: {:.3f} accuracy: {:.3f}".format(i+1, last_loss, accuracy))
+        last_avg_prec = avg_prec
+        print("batch {} loss: {:.3f} avg precision: {:.3f}".format(i+1, last_loss, avg_prec))
         tb_x = epoch_index * len(train_dataloader) + i + 1
         tb_writer.add_scalar("Loss/train", last_loss, tb_x)
         running_loss = 0.0
             
-    return last_loss
+    return last_loss, last_avg_prec
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 writer = SummaryWriter("/content/humanlike-ocr/runs/atom_trainer_{}".format(timestamp))
 
 epoch_number = 0
 
-EPOCHS = 10
-
+EPOCHS = 50
+l
 best_vloss = 1_000_000.
 
 # training loop for all the epochs
@@ -222,7 +225,7 @@ for epoch in range(EPOCHS):
 
     
     ntmcell.train(True)
-    avg_loss = train_one_epoch(epoch_number, writer)
+    avg_loss, train_avg_prec = train_one_epoch(epoch_number, writer)
     
     ntmcell.train(False)
     
@@ -236,15 +239,16 @@ for epoch in range(EPOCHS):
             # voutputs = voutputs.type(torch.float)
             # vlabels = torch.nn.functional.one_hot(vlabels, num_classes=37)
             vlabels = vlabels.type(torch.float)
+            vavg_prec = metric(voutputs, torch.argmax(vlabels, dim=1))
             vloss = loss_fn(voutputs, vlabels)
             running_vloss += vloss
     
     avg_vloss = running_vloss / (i + 1)
-    print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
+    print("LOSS train: {:.3f} valid: {:.3f} avg precision: {:.3f}".format(avg_loss, avg_vloss, vavg_prec))
     
     writer.add_scalars(
         "Training vs. Validation Loss", 
-        {"Training": avg_loss, "Validation": avg_vloss},
+        {"Training": avg_loss, "Validation": avg_vloss, "Train_Avg_Prec": train_avg_prec, "Val_Avg_Prec": vavg_prec},
         epoch_number + 1
         )
     writer.flush()
@@ -256,9 +260,3 @@ for epoch in range(EPOCHS):
         torch.save(ntmcell.state_dict(), model_path)
         
     epoch_number += 1
- 
- 
- 
- 
- 
- 
