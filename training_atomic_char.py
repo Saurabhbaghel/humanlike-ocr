@@ -1,6 +1,7 @@
 import os, sys
 from datetime import datetime
 
+
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import torch
@@ -32,7 +33,8 @@ N, M = 120, 120
 
 num_inputs = 2048
 num_outputs = 37
-num_layers = 4
+num_layers = 1
+
 
 controller_size = 4096 # for resnet50 model
 num_heads = 2
@@ -82,7 +84,6 @@ class AtomicCharsDataset(Dataset):
         label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=37)
         return image, label
         # return features, label
-    
 
 # reading the label csv
 if path_csv_labels is None or not isinstance(path_csv_labels, str):
@@ -155,6 +156,7 @@ loss_fn = torch.nn.BCELoss() #torch.nn.CrossEntropyLoss()
 # defining the optimizer 
 optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005) 
 
+
 # defining accuracy
 # acc = MulticlassAccuracy(num_classes=37).to(device_)
 metric = AveragePrecision(task="multiclass", num_classes=37)
@@ -181,10 +183,13 @@ def train_one_epoch(epoch_index, tb_writer):
         # make predictions for this batch
         outputs, _ = ntmcell(inputs, prev_state)
         outputs = outputs.type(torch.float)
-        # pred_label = torch.argmax(outputs,dim=1)
+        pred_label = torch.argmax(outputs,dim=1)
+        # print(pred_label)
+        # print(torch.argmax(labels,dim=1))
         # compute the loss and its gradients
         # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
+        acc = metric(pred_label, torch.argmax(labels, dim=1))
         loss = loss_fn(outputs, labels)
         # print("the label xis ",F.sigmoid(outputs))
         # accuracy = acc(outputs, labels)
