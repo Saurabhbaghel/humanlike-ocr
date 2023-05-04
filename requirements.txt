@@ -1,3 +1,5 @@
+torch
+torchvision
 argcomplete
 attrs
 numpy
