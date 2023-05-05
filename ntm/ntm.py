@@ -78,8 +78,8 @@ class NTM(nn.Module):
         # print(inp)
         # print(inp.size())
         # controller_outp, controller_state = self.controller(inp, prev_controller_state) # prev_controller_state = float32
-        controller_outp = self.controller(inp).squeeze(1) # this controller is FCN
-        print(controller_outp)
+        controller_outp = self.controller(inp).squeeze() # this controller is FCN
+        # print(controller_outp)
         # Read/Write from the list of heads
         reads = []
         heads_states = []

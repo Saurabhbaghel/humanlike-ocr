@@ -99,5 +99,5 @@ class FeedforwardController(nn.Module):
             # raise AssertionError(f"dimension of the input is {x.ndim} and shape is {x.size()}. It should be a 3d tensor.")
         # for layer in self.feature_extractor:
         #     x = layer(x)
-        outp = self.feature_extractor
+        outp = self.feature_extractor(x)
         return outp
