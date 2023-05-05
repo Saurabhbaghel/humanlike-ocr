@@ -81,7 +81,7 @@ class AtomicCharsDataset(Dataset):
         if self.target_transform:
             label = self.target_transform(label)
             
-        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=37)
+        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=num_outputs)
         return image, label
         # return features, label
 
@@ -159,7 +159,7 @@ optimizer = torch.optim.Adam(ntmcell.parameters(), lr=0.005)
 
 # defining accuracy
 # acc = MulticlassAccuracy(num_classes=37).to(device_)
-metric = AveragePrecision(task="multiclass", num_classes=37)
+metric = AveragePrecision(task="multiclass", num_classes=num_outputs)
 
 # training loop for one epoch
 def train_one_epoch(epoch_index, tb_writer):
@@ -183,13 +183,13 @@ def train_one_epoch(epoch_index, tb_writer):
         # make predictions for this batch
         outputs, _ = ntmcell(inputs, prev_state)
         outputs = outputs.type(torch.float)
-        pred_label = torch.argmax(outputs,dim=1)
+        # pred_label = torch.argmax(outputs,dim=1)
         # print(pred_label)
         # print(torch.argmax(labels,dim=1))
         # compute the loss and its gradients
         # labels = torch.nn.functional.one_hot(labels, num_classes=37)
         labels = labels.type(torch.float)
-        acc = metric(pred_label, torch.argmax(labels, dim=1))
+        # acc = metric(pred_label, torch.argmax(labels, dim=1))
         loss = loss_fn(outputs, labels)
         # print("the label xis ",F.sigmoid(outputs))
         # accuracy = acc(outputs, labels)
@@ -220,7 +220,7 @@ writer = SummaryWriter("/content/humanlike-ocr/runs/atom_trainer_{}".format(time
 epoch_number = 0
 
 EPOCHS = 50
-l
+
 best_vloss = 1_000_000.
 
 # training loop for all the epochs
