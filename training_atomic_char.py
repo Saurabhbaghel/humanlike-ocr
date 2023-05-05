@@ -36,7 +36,7 @@ num_outputs = 37
 num_layers = 1
 
 
-controller_size = 4096 # for resnet50 model
+controller_size = 2048 # for resnet50 model
 num_heads = 2
 
 # num_inputs + M * num_heads
