@@ -55,6 +55,41 @@ class LSTMController(nn.Module):
         outp, state = self.lstm(x, prev_state) 
         return outp.squeeze(0), state
     
+
+
+class ConvBlock(nn.Module):
+    def __init__(self, input_channels: int, out_channels: int, kernel_size: tuple = (3, 3)):
+        """Basic Conv Block with convolution layer, etc.
+
+        Args:
+            input_channels (int): _description_
+            out_channels (int): _description_
+            kernel_size (tuple, optional): _description_. Defaults to (3, 3).
+        """
+        super().__init__()
+        self.input_channels = input_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        
+        self.conv = nn.Conv2d(self.input_channels, self.out_channels, self.kernel_size)
+        self.relu = nn.ReLU()
+        self.maxpool = nn.MaxPool2d(self.kernel_size)
+        self.dropout = nn.Dropout2d()
+        self.batchnorm = nn.BatchNorm2d(self.out_channels)
+    
+    def forward(self, x, training:bool = True):
+        conv_res = self.conv(x)
+        activated = self.relu(conv_res)
+        pooled = self.maxpool(activated)
+        if training:
+            pooled = self.dropout(pooled)
+        y = self.batchnorm(pooled)
+        return y
+    
+    def __repr__(self):
+        return f"ConvBlock({self.input_channels, self.out_channels, self.kernel_size})"
+
+
 class FeedforwardController(nn.Module):
     def __init__(self, num_inputs:int, num_layers:int) -> None:
         super().__init__()
@@ -79,8 +114,17 @@ class FeedforwardController(nn.Module):
         #     nn.Linear(200, 80),
         #     nn.ReLU()
         # ]
-        model_ = resnet50(pretrained=True)
-        self.feature_extractor = nn.Sequential(*list(model_.children())[:-1]).to(self.device_)
+        self.model_ = nn.Sequential([
+            ConvBlock(3, 32),
+            ConvBlock(32, 32),
+            ConvBlock(32, 64)
+            # ConvBlock(32, 64),
+            # ConvBlock(64, 128),
+            # ConvBlock(128, 256)
+        ])
+        self.fc_ = nn.Linear(64, 44, device=self.device_)
+        # model_ = resnet50(pretrained=True)
+        # self.feature_extractor = nn.Sequential(*list(model_.children())[:-1]).to(self.device_)
         
         # for layer_ in self.layers[::2]:
         #     nn.init.kaiming_normal_(layer_.weight)
@@ -93,11 +137,12 @@ class FeedforwardController(nn.Module):
             
 
 
-    def forward(self, x):
+    def forward(self, x, training:bool=True):
         # if x.ndim != 3:
         #     x = x.unsqueeze(1)
             # raise AssertionError(f"dimension of the input is {x.ndim} and shape is {x.size()}. It should be a 3d tensor.")
         # for layer in self.feature_extractor:
         #     x = layer(x)
-        outp = self.feature_extractor(x)
+        y = self.model_(x, training)
+        outp = self.fc_(y)
         return outp
