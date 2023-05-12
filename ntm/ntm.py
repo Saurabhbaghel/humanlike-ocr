@@ -57,7 +57,7 @@ class NTM(nn.Module):
         nn.init.xavier_uniform_(self.fc.weight, gain=1)
         nn.init.normal_(self.fc.bias, std=0.01)
         
-    def forward(self, x, prev_state):
+    def forward(self, x, prev_state, training=True):
         """ 
         
 
@@ -78,7 +78,7 @@ class NTM(nn.Module):
         # print(inp)
         # print(inp.size())
         # controller_outp, controller_state = self.controller(inp, prev_controller_state) # prev_controller_state = float32
-        controller_outp = self.controller(inp).squeeze() # this controller is FCN
+        controller_outp = self.controller(inp, training).squeeze() # this controller is FCN
         # print(controller_outp)
         # Read/Write from the list of heads
         reads = []

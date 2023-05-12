@@ -7,6 +7,7 @@ from .memory import NTMMemory
 
 def _split_cols(mat, lengths):
     '''splitting a 2D matrix to variable length columns'''
+
     assert mat.size()[1] == sum(lengths), "Lengths must be summed to num columns"
     l = np.cumsum([0] + lengths)
     results = []
