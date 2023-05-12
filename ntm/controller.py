@@ -114,15 +114,16 @@ class FeedforwardController(nn.Module):
         #     nn.Linear(200, 80),
         #     nn.ReLU()
         # ]
-        self.model_ = nn.Sequential([
-            ConvBlock(3, 32),
-            ConvBlock(32, 32),
-            ConvBlock(32, 64)
+        self.model_ = nn.Sequential(
+            ConvBlock(self.num_inputs, 32, (2,2)),
+            # ConvBlock(32, 32, (2,2)),
+            ConvBlock(32, 64, (2,2))
             # ConvBlock(32, 64),
             # ConvBlock(64, 128),
             # ConvBlock(128, 256)
-        ])
-        self.fc_ = nn.Linear(64, 44, device=self.device_)
+        )
+        self.flatten = nn.Flatten()
+        # self.fc_ = nn.Linear(64, 44, device=self.device_)
         # model_ = resnet50(pretrained=True)
         # self.feature_extractor = nn.Sequential(*list(model_.children())[:-1]).to(self.device_)
         
@@ -143,6 +144,15 @@ class FeedforwardController(nn.Module):
             # raise AssertionError(f"dimension of the input is {x.ndim} and shape is {x.size()}. It should be a 3d tensor.")
         # for layer in self.feature_extractor:
         #     x = layer(x)
-        y = self.model_(x, training)
-        outp = self.fc_(y)
-        return outp
+        
+        # x1 = ConvBlock(3, 32)(x)
+        # print(x1.shape)
+        # x2 = ConvBlock(32, 32)(x1)
+        # print(x2.shape)
+        # y = ConvBlock(32, 64)(x2)
+        # print(y.shape)
+        
+        y = self.model_(x)
+
+        # outp = self.fc_(y)
+        return self.flatten(y)

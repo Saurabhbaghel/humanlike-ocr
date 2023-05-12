@@ -29,10 +29,10 @@ path_csv_labels, user_batch_size, user_img_dir = sys.argv[1], sys.argv[2], sys.a
 torch.autograd.set_detect_anomaly(True)
 device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-N, M = 120, 120
+N, M = 10, 10
 
 num_inputs = 2048
-num_outputs = 37
+num_outputs = 44
 num_layers = 1
 
 
