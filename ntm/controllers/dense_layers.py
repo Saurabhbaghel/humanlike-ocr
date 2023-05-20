@@ -92,12 +92,12 @@ class LinearLayer(nn.Module):
         super().__init__()
         self.dense_layer = nn.Linear(num_inputs, num_out)
         self.activation_layer = nn.ReLU()
-        self.batchnorm = nn.BatchNorm1d(num_out)
+        # self.batchnorm = nn.BatchNorm1d(num_out)
 
     def forward(self, x):
         x = self.dense_layer(x)
         x = self.activation_layer(x)
-        return self.batchnorm(x)
+        return x
 
 class LinearNetController2(nn.Module):
     def __init__(self, num_inputs:int, num_layers:int) -> None:
