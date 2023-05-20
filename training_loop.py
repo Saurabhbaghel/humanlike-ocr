@@ -8,6 +8,10 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
     
     # print the structure of the net
     print(net)
+
+    # for storing the losses for plotting 
+    train_loss = []
+    val_loss = []
     
     for epoch in range(num_epochs):
         
@@ -46,6 +50,7 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             running_loss += avg_loss.item()
             last_loss = running_loss
             # last_avg_prec = avg_prec
+            train_loss.append(avg_loss.item())
         outputs = torch.cat(list_outputs, dim=0)
         labels = torch.cat(list_labels).squeeze()
         print(outputs, labels)
@@ -70,7 +75,8 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
                 list_labels.append(vlabels)
                 vloss = loss_fn(voutputs, vlabels)
                 running_vloss += vloss
-            
+                val_loss.append(vloss.item())
+
             voutputs = torch.cat(list_outputs, dim=0)
             vlabels = torch.cat(list_labels).squeeze()
             vacc = metric(voutputs, vlabels)
