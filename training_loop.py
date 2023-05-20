@@ -5,30 +5,37 @@ device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # training loop
 def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, optimizer, metric, loss_fn):
+    
+    # print the structure of the net
+    print(net)
+    
     for epoch in range(num_epochs):
-        print("Epoch {}".format(epoch))
+        
 
         last_loss = 0.0
         list_outputs = []
         list_labels = []
         
-        net.train(True)
+        # net.train(True)
+        print("Epoch {}".format(epoch))
         for i, data in enumerate(train_dataloader):
             running_loss = 0.0
             
             inputs, labels = data[0].to(device_), data[1].to(device_)
             # print(inputs.size())
-            labels = labels.type(torch.float)
+            # labels = labels.type(torch.float)
             optimizer.zero_grad()
 
             net.init_sequence(batch_size)
             
             training = True
             outputs, _ = net(inputs)
+            # print(torch.argmax(outputs, dim=1), labels)
             avg_loss = loss_fn(outputs, labels)
+            outputs = torch.argmax(outputs, dim=1)
 
             list_outputs.append(outputs)
-            list_labels.append(torch.argmax(labels, dim=1))
+            list_labels.append(labels)
             
             # avg_prec = metric(outputs, torch.argmax(labels, dim=1))
             # print(torch.argmax(outputs, dim=1), torch.argmax(labels, dim=1))
@@ -41,9 +48,11 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             # last_avg_prec = avg_prec
         outputs = torch.cat(list_outputs, dim=0)
         labels = torch.cat(list_labels).squeeze()
+        print(outputs, labels)
+
         acc = metric(outputs, labels)
         print("epoch {}, loss {:.3f}, train acc {:.3f}".format(epoch, last_loss, acc))
-        torch.save(net, "model_new_hw_{}_{}.pt".format("11-05-23", epoch))
+        torch.save(net, "model_new_printed_{}_{}.pt".format("20-05-23", epoch))
         
         # validation
         list_outputs = []
@@ -52,13 +61,13 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
         with torch.no_grad():
             running_vloss = 0.0
             for i, data in enumerate(val_dataloader):
-                net.init_sequence(batch_size)
+                # net.init_sequence(batch_size)
 
                 vinputs, vlabels = data[0].to(device_), data[1].to(device_)
-                vlabels = vlabels.type(torch.float)
+                # vlabels = vlabels.type(torch.float)
                 voutputs, _ = net(vinputs)
                 list_outputs.append(voutputs)
-                list_labels.append(torch.argmax(vlabels, dim=1))
+                list_labels.append(vlabels)
                 vloss = loss_fn(voutputs, vlabels)
                 running_vloss += vloss
             

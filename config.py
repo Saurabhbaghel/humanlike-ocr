@@ -1,6 +1,7 @@
 import torch
 from torchmetrics.classification import MulticlassAccuracy, MulticlassAveragePrecision, MulticlassF1Score
 from ntm.encapsulated import EncapsulatedNTM
+from ntm.controllers import LinearNetController, LSTMController, ConvNetController
 
 class configuration:
     def __init__(self) -> None:
@@ -14,7 +15,9 @@ class configuration:
                   batch_size=2,
                   num_classes=44,
                   num_epochs = 50,                  
-                  num_heads=4, N=10, M=10):
+                  num_heads=4, N=10, M=10,
+                  controller_=ConvNetController
+                  ):
         """
         Initializes the constants
 
@@ -38,6 +41,7 @@ class configuration:
         self.num_epochs = num_epochs
         self.num_heads = num_heads
         self.N, self.M = N, M
+        self.controller_ = controller_
         
 
     
@@ -96,10 +100,11 @@ class configuration:
             self.controller_layers,
             self.num_heads,
             self.N,
-            self.M
+            self.M,
+            self.controller_
         )
 
-    def loss_optimizer_metric(self):
+    def loss_optimizer_metric(self, learning_rate=0.005):
         """
         Initializes the loss, optimizer and metric fn.
 
@@ -107,10 +112,11 @@ class configuration:
             _type_: _description_
         """
         # loss
-        loss_fn = torch.nn.BCELoss()
+        # loss_fn = torch.nn.BCELoss()
+        loss_fn = torch.nn.CrossEntropyLoss()
 
         # optimizer
-        optimizer = torch.optim.Adam(self.net().parameters())
+        optimizer = torch.optim.Adam(self.net().parameters(), lr=learning_rate)
 
         # metric
         # metric = AveragePrecision(task="multiclass", num_classes=num_outputs)

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from .ntm import NTM
-from .controller import LSTMController,FeedforwardController
+from ntm.controllers import LSTMController,LinearNetController, ConvNetController
 from .head  import NTMReadHead, NTMWriteHead
 from .memory import NTMMemory
 
@@ -14,7 +14,8 @@ class EncapsulatedNTM(nn.Module):
         controller_layers,
         num_heads,
         N,
-        M 
+        M,
+        controller_=ConvNetController
         ) -> None:
         super().__init__()
         
@@ -29,7 +30,7 @@ class EncapsulatedNTM(nn.Module):
         
         # create the NTM components
         memory = NTMMemory(N, M)
-        controller = FeedforwardController(num_inputs, controller_layers) #LSTMController(num_inputs + M*num_heads, controller_size, controller_layers)
+        controller = controller_(num_inputs, controller_layers) #LSTMController(num_inputs + M*num_heads, controller_size, controller_layers)
         heads = nn.ModuleList([])
         for i in range(num_heads):
             heads += [

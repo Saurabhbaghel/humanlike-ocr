@@ -101,4 +101,6 @@ class NTM(nn.Module):
         
         return F.softmax(o), self.state
     
+    def __repr__(self):
+        return f"""Controller: {self.controller}, Num of Inputs: {self.num_inputs}, Num of Outputs: {self.num_outputs}, Memory: {self.memory}"""
         
