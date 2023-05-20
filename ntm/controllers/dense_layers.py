@@ -92,7 +92,7 @@ class LinearLayer(nn.Module):
         super().__init__()
         self.dense_layer = nn.Linear(num_inputs, num_out)
         self.activation_layer = nn.ReLU()
-        self.batchnorm = nn.BatchNorm1d()
+        self.batchnorm = nn.BatchNorm1d(num_out)
 
     def forward(self, x):
         x = self.dense_layer(x)
