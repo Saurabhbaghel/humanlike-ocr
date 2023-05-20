@@ -21,8 +21,8 @@ class dataset(torch.utils.data.Dataset):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
         thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 21, 10)
         # normed= cv2.normalize(thresh, None, 0, 1.0, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        skeleton = cv2.ximgproc.thinning(thresh, None, 1)
-        image = cv2.resize(skeleton, (32, 32))
+        # skeleton = cv2.ximgproc.thinning(thresh, None, 1)
+        image = cv2.resize(thresh, (32, 32))
         return image
 
     def __len__(self):
@@ -35,9 +35,9 @@ class dataset(torch.utils.data.Dataset):
         image_ = self.transforms_(image) #.to(device_)
         image = torch.from_numpy(image_)
         label = self.images_csv.iloc[index, 1]
-        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=self.num_classes)
+        # label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=self.num_classes)
         return image.unsqueeze(0), label
     
     
 def dataloader(dataset, batch_size):
-    return torch.utils.data.DataLoader(dataset, batch_size)
+    return torch.utils.data.DataLoader(dataset, batch_size, shuffle=True)
