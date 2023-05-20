@@ -55,7 +55,14 @@ class LinearNetController(nn.Module):
             # nn.LazyLinear(out_features=20, device=self.device_),
             # nn.Linear(20, self.num_outputs, device=self.device_)
             
+        self.reset_parameters()
 
+    def reset_parameters(self):
+        for p in self.model_.parameters():
+            if p.dim() == 1:
+                nn.init.constant_(p, 0)
+            else:
+                nn.init.kaiming_uniform_(p)
 
     def forward(self, x, training:bool=True):
         # if x.ndim != 3:
@@ -78,3 +85,54 @@ class LinearNetController(nn.Module):
 
     def __name__(self):
         return "LinearNetController"
+    
+
+class LinearLayer(nn.Module):
+    def __init__(self, num_inputs: int, num_out: int):
+        super().__init__()
+        self.dense_layer = nn.Linear(num_inputs, num_out)
+        self.activation_layer = nn.ReLU()
+        self.batchnorm = nn.BatchNorm()
+
+    def forward(self, x):
+        x = self.dense_layer(x)
+        x = self.activation_layer(x)
+        return self.batchnorm(x)
+
+class LinearNetController2(nn.Module):
+    def __init__(self, num_inputs:int, num_layers:int) -> None:
+        super().__init__()
+        self.num_inputs = num_inputs
+        # self.num_outputs = num_outputs
+        self.num_layers = num_layers
+        # self.batch_size = batch_size
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        self.model_ = nn.Sequential(
+            LinearLayer(32, 64),
+            LinearLayer(64, 128),
+            LinearLayer(128, 128),
+            LinearLayer(128, 256),
+            LinearLayer(256, 256),
+            LinearLayer(256, 512)
+
+        )
+        self.flatten = nn.Flatten()
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        for p in self.model_.parameters():
+            if p.dim() == 1:
+                nn.init.constant_(p, 0)
+            else:
+                nn.init.kaiming_uniform_(p)
+
+    def forward(self, x, training:bool=True):        
+        y = self.model_(x)
+
+        # outp = self.fc_(y)
+        return self.flatten(y)
+
+    def __name__(self):
+        return "LinearNetController2"
