@@ -33,6 +33,7 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             net.init_sequence(batch_size)
             
             training = True
+            # print(inputs.s)
             outputs, _ = net(inputs)
             # print(torch.argmax(outputs, dim=1), labels)
             avg_loss = loss_fn(outputs, labels)
