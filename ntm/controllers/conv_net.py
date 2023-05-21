@@ -63,16 +63,16 @@ class ConvNetController(BaseController):
         #     nn.ReLU()
         # ]
         self.model_ = nn.Sequential(
-            nn.Linear(25, 100),
-            nn.Linear(100, 200),
-            nn.Linear(200, 400)
+            # nn.Linear(25, 100),
+            # nn.Linear(100, 200),
+            # nn.Linear(200, 400)
             
-            # ConvBlock(self.num_inputs, 32, (2,2)),
+            ConvBlock(self.num_inputs, 32, (2,2)),
             # ConvBlock(32, 32, (2,2)),
             # ConvBlock(32, 64, (2,2))
-            # ConvBlock(32, 64),
-            # ConvBlock(64, 128),
-            # ConvBlock(128, 256)
+            ConvBlock(32, 64, (2, 2)),
+            ConvBlock(64, 128, (2, 2)),
+            ConvBlock(128, 256, (2, 2))
         )
         self.flatten = nn.Flatten()
         # self.fc_ = nn.Linear(64, 44, device=self.device_)
@@ -104,6 +104,9 @@ class ConvNetController(BaseController):
         # y = ConvBlock(32, 64)(x2)
         # print(y.shape)
         
+        # x = x.squeeze() if x.ndim == 4 else x
+
+        # print(x.size())
         y = self.model_(x)
 
         # outp = self.fc_(y)
