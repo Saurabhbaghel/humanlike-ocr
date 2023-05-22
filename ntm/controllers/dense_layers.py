@@ -55,9 +55,9 @@ class LinearNetController(nn.Module):
             # nn.LazyLinear(out_features=20, device=self.device_),
             # nn.Linear(20, self.num_outputs, device=self.device_)
             
-        self.reset_parameters()
+        # self.init_sequence()
 
-    def reset_parameters(self):
+    def init_sequence(self, batch_size):
         for p in self.model_.parameters():
             if p.dim() == 1:
                 nn.init.constant_(p, 0)
@@ -119,9 +119,9 @@ class LinearNetController2(nn.Module):
         )
         self.flatten = nn.Flatten()
 
-        self.reset_parameters()
+        # self.reset_parameters()
 
-    def reset_parameters(self):
+    def init_sequence(self, batch_size):
         for p in self.model_.parameters():
             if p.dim() == 1:
                 nn.init.constant_(p, 0)

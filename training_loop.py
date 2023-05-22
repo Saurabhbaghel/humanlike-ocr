@@ -20,6 +20,8 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
         list_outputs = []
         list_labels = []
         
+        net.init_sequence(batch_size)
+
         # net.train(True)
         print("Epoch {}".format(epoch))
         for i, data in enumerate(train_dataloader):
@@ -30,7 +32,7 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             # labels = labels.type(torch.float)
             optimizer.zero_grad()
 
-            net.init_sequence(batch_size)
+            
             
             training = True
             # print(inputs.s)
@@ -44,7 +46,7 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             
             # avg_prec = metric(outputs, torch.argmax(labels, dim=1))
             # print(torch.argmax(outputs, dim=1), torch.argmax(labels, dim=1))
-            avg_loss.backward()
+            avg_loss.backward(retain_loss = True)
 
             optimizer.step()
 
@@ -83,3 +85,5 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             vacc = metric(voutputs, vlabels)
             avg_vloss = running_vloss / (i+1)
             print("Loss train {:.3f},  validation {:.3f},  val acc {:.3f}".format(avg_loss, avg_vloss, vacc))
+
+    return train_loss, val_loss

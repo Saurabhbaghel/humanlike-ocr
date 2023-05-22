@@ -75,7 +75,7 @@ class ConvNetController(BaseController):
             ConvBlock(128, 256, (2, 2))
         )
         self.flatten = nn.Flatten()
-        # self.fc_ = nn.Linear(64, 44, device=self.device_)
+        self.fc_ = nn.Linear(64, 44, device=self.device_)
         # model_ = resnet50(pretrained=True)
         # self.feature_extractor = nn.Sequential(*list(model_.children())[:-1]).to(self.device_)
         
@@ -87,7 +87,13 @@ class ConvNetController(BaseController):
             # )
             # nn.LazyLinear(out_features=20, device=self.device_),
             # nn.Linear(20, self.num_outputs, device=self.device_)
-            
+
+    def init_sequence(self, batch_size):
+        for p in self.model_.parameters():
+            if p.dim() == 1:
+                nn.init.constant_(p, 0)
+            else:
+                nn.init.kaiming_uniform_(p)   
 
 
     def forward(self, x, training:bool=True):
@@ -108,9 +114,9 @@ class ConvNetController(BaseController):
 
         # print(x.size())
         y = self.model_(x)
-
-        # outp = self.fc_(y)
-        return self.flatten(y)
+        y = self.flatten(y)
+        outp = self.fc_(y)
+        return torch.nn.functional.softmax(outp, dim=1)
 
 
     def __name__(self):
