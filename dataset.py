@@ -4,17 +4,19 @@ from config import *
 
 
 class dataset(torch.utils.data.Dataset):
-    def __init__(self, annotations_file, img_dir, num_classes):
+    def __init__(self, annotations_file, img_dir, num_classes, lstm=False):
         if isinstance(annotations_file, str):
             annotations_file = pd.read_csv(annotations_file)
         self.images_csv = annotations_file.reset_index(drop=True) #pd.read_csv(annotations_file).reset_index(drop=True)
         self.img_dir = img_dir
         self.num_classes = num_classes
+        self.lstm = lstm
         self.transforms_ = tv.transforms.Compose([
             tv.transforms.Resize(40),
-            # tv.transforms.CenterCrop(40),
+           
             tv.transforms.ConvertImageDtype(torch.float),
-            tv.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            tv.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            tv.transforms.Grayscale(num_output_channels=1) if lstm else  tv.transforms.CenterCrop(40)
         ])
         
     # def transforms_(self, image):
@@ -36,6 +38,9 @@ class dataset(torch.utils.data.Dataset):
         # image = torch.from_numpy(image_)
         label = self.images_csv.iloc[index, 1]
         # label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=self.num_classes)
+        if self.lstm:
+            image_linear_arr = torch.nn.Flatten()(image)
+            return image_linear_arr.unsqueeze(0), label   
         return image.unsqueeze(0), label
     
     

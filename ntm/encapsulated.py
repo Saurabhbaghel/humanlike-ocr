@@ -30,6 +30,7 @@ class EncapsulatedNTM(nn.Module):
         
         # create the NTM components
         memory = NTMMemory(N, M)
+        # TODO check the controller according to the name
         controller = controller_(num_inputs, controller_layers) #LSTMController(num_inputs + M*num_heads, controller_size, controller_layers)
         heads = nn.ModuleList([])
         for i in range(num_heads):
