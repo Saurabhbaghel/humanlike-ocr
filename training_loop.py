@@ -46,7 +46,7 @@ def training(net, num_epochs, batch_size, train_dataloader, val_dataloader, opti
             
             # avg_prec = metric(outputs, torch.argmax(labels, dim=1))
             # print(torch.argmax(outputs, dim=1), torch.argmax(labels, dim=1))
-            avg_loss.backward(retain_loss = True)
+            avg_loss.backward(retain_graph = True)
 
             optimizer.step()
 
