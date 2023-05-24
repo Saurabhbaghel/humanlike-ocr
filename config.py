@@ -59,6 +59,7 @@ class configuration:
         
         
         if printed:
+            if train:
             annotation_printed = "data/atoms_4300.csv"
             printed_img_dir = "data/atoms_4300"
             return annotation_printed, printed_img_dir
