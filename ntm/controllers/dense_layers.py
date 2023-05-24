@@ -136,3 +136,42 @@ class LinearNetController2(nn.Module):
 
     def __name__(self):
         return "LinearNetController2"
+    
+
+class LinearNetController3(nn.Module):
+    def __init__(self, num_inputs:int, num_layers:int) -> None:
+        super().__init__()
+        self.num_inputs = num_inputs
+        # self.num_outputs = num_outputs
+        self.num_layers = num_layers
+        # self.batch_size = batch_size
+        self.device_ = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        self.model_ = nn.Sequential(
+            LinearLayer(self.num_inputs, 1024),
+            LinearLayer(1024, 2048),
+            LinearLayer(2048, 2048),
+            LinearLayer(2048, 4096),
+            # LinearLayer(256, 256),
+            # LinearLayer(256, 512)
+
+        )
+        self.flatten = nn.Flatten()
+
+        # self.reset_parameters()
+
+    def init_sequence(self, batch_size):
+        for p in self.model_.parameters():
+            if p.dim() == 1:
+                nn.init.constant_(p, 0)
+            else:
+                nn.init.kaiming_uniform_(p)
+
+    def forward(self, x, training:bool=True):        
+        y = self.model_(x)
+
+        # outp = self.fc_(y)
+        return self.flatten(y)
+
+    def __name__(self):
+        return "LinearNetController3"

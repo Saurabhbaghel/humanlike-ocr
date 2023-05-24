@@ -60,9 +60,13 @@ class configuration:
         
         if printed:
             if train:
-            annotation_printed = "data/atoms_4300.csv"
-            printed_img_dir = "data/atoms_4300"
-            return annotation_printed, printed_img_dir
+                annotation_printed = "data/atoms_train_printed.csv"
+                printed_img_dir = "data/atoms_training_printed"
+                return annotation_printed, printed_img_dir
+            else:
+                annotation_printed = "data/atoms_eval_printed.csv"
+                printed_img_dir = "data/atoms_evaluation_printed"
+                return annotation_printed, printed_img_dir 
 
         
         else:
