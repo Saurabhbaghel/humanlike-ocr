@@ -119,6 +119,7 @@ class configuration:
         # loss
         # loss_fn = torch.nn.BCELoss()
         loss_fn = torch.nn.CrossEntropyLoss()
+        # loss_fn = torch.nn.MSELoss()
 
         # optimizer
         optimizer = torch.optim.Adam(self.net().parameters(), lr=learning_rate)

@@ -16,7 +16,7 @@ class dataset(torch.utils.data.Dataset):
            
             tv.transforms.ConvertImageDtype(torch.float),
             tv.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            tv.transforms.Grayscale(num_output_channels=1) if lstm else  tv.transforms.CenterCrop(40)
+            tv.transforms.Grayscale(num_output_channels=1) #if lstm else  tv.transforms.CenterCrop(40)
         ])
         
     # def transforms_(self, image):
@@ -37,12 +37,28 @@ class dataset(torch.utils.data.Dataset):
         image_ = self.transforms_(image) #.to(device_)
         # image = torch.from_numpy(image_)
         label = self.images_csv.iloc[index, 1]
-        # label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=self.num_classes)
+        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=self.num_classes)
         if self.lstm:
             image_linear_arr = torch.nn.Flatten()(image)
             return image_linear_arr.unsqueeze(0), label   
-        return image.unsqueeze(0), label
+        image_linear_arr = torch.nn.Flatten()(image_)
+        
+        return image_linear_arr, label #image_.unsqueeze(0), label
     
     
+# defining dataset
+class PreGeneratedDataset(torch.utils.data.Dataset):
+    def __init__(self, dataframe):
+        self.dataframe = dataframe
+
+    def __len__(self):
+        return self.dataframe.shape[0]
+
+    def __getitem__(self, index):
+        label = self.dataframe.iloc[index, 1].astype(dtype=int)
+        features = self.dataframe.iloc[index, 2:].to_numpy()
+        return torch.from_numpy(features.astype("float")), torch.tensor(label)
+    
+
 def dataloader(dataset, batch_size):
     return torch.utils.data.DataLoader(dataset, batch_size, shuffle=True)
