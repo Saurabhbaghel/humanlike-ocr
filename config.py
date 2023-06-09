@@ -117,8 +117,8 @@ class configuration:
             _type_: _description_
         """
         # loss
-        # loss_fn = torch.nn.BCELoss()
-        loss_fn = torch.nn.CrossEntropyLoss()
+        loss_fn = torch.nn.BCELoss()
+        # loss_fn = torch.nn.CrossEntropyLoss()
         # loss_fn = torch.nn.MSELoss()
 
         # optimizer

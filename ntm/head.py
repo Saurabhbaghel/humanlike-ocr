@@ -5,15 +5,57 @@ import numpy as np
 
 from .memory import NTMMemory
 
+class SimpleRegressor(nn.Module):
+    def __init__(self, input_size, output_size, activation=None):
+        super().__init__()
+        self.linear = nn.Linear(input_size, output_size)
+        self.relu = nn.ReLU()
+        self.activation = activation
+
+    def forward(self, x, ):
+        y = self.linear(x)
+        if self.activation:
+            return self.activation(y)
+        return y
+
+
 def _split_cols(mat, lengths):
     '''splitting a 2D matrix to variable length columns'''
+    k_len, beta_len, g_len, s_len, gamma_len, e_len, a_len = lengths
+    # regressor for "k"
+    k_reg = SimpleRegressor(mat.size()[1], k_len)
 
-    assert mat.size()[1] == sum(lengths), "Lengths must be summed to num columns"
-    l = np.cumsum([0] + lengths)
-    results = []
-    for s, e in zip(l[:-1], l[1:]):
-        results += [mat[:, s:e]]
-    return results
+    # regressor for "beta"
+    beta_reg = SimpleRegressor(mat.size()[1], beta_len)
+
+    # regressor for "g"
+    g_reg = SimpleRegressor(mat.size()[1], g_len)
+
+    # regressor for "s"
+    s_reg = SimpleRegressor(mat.size()[1], s_len)
+    
+    # regressor for "gamma"
+    gamma_reg = SimpleRegressor(mat.size()[1], gamma_len)
+
+    if e_len > 0:
+        # "regressor for e"
+        e_reg = SimpleRegressor(mat.size()[1], e_len)
+    if a_len > 0:
+        # regressor for "a"
+        a_reg = SimpleRegressor(mat.size()[1], a_len)
+    
+
+    k = k_reg(mat)
+    beta = F.softplus(beta_reg(mat))
+    g = torch.sigmoid(g_reg(mat))
+    s = torch.softmax(s_reg(mat), dim=1)
+    gamma = 1 + F.softplus(gamma_reg(mat))
+
+    if e_len > 0:
+        e = torch.sigmoid(e_reg(mat))
+        a = a_reg(mat) 
+        return [k, beta, g, s, gamma, e, a]
+    return [k, beta, g, s, gamma] #results
 
 class NTMHeadBase(nn.Module):
     def __init__(self, memory:NTMMemory, controller_size:int) -> None:
@@ -60,8 +102,25 @@ class NTMReadHead(NTMHeadBase):
     def __init__(self, memory:NTMMemory, controller_size:int) -> None:
         super().__init__(memory, controller_size)
         
-        self.read_lengths = [self.M, 1, 1, 3, 1] # corresponding to k, beta, g, s, gamma sizes
+        self.read_lengths = [self.M, 1, 1, 3, 1] # corresponding to k, beta, g, s, gamma, e, a sizes
         self.fc_read = nn.Linear(controller_size, sum(self.read_lengths))
+        
+        k_len, beta_len, g_len, s_len, gamma_len = self.read_lengths
+        # regressor for "k"
+        self.k_reg = SimpleRegressor(controller_size, k_len)
+
+        # regressor for "beta"
+        self.beta_reg = SimpleRegressor(controller_size, beta_len)
+
+        # regressor for "g"
+        self.g_reg = SimpleRegressor(controller_size, g_len)
+
+        # regressor for "s"
+        self.s_reg = SimpleRegressor(controller_size, s_len)
+        
+        # regressor for "gamma"
+        self.gamma_reg = SimpleRegressor(controller_size, gamma_len)
+
         self.reset_parameters()
         
     def create_new_state(self, batch_size):
@@ -86,12 +145,20 @@ class NTMReadHead(NTMHeadBase):
             _type_: _description_
         """
         
-        o_ = self.fc_read(embeddings)
-        o = o_.clone()
-        k, beta, g, s, gamma = _split_cols(o, self.read_lengths)
+        # o_ = self.fc_read(embeddings)
+        # o = o_.clone()
+        # k, beta, g, s, gamma = _split_cols(embeddings.clone(), self.read_lengths)
         
+        mat = embeddings.clone()
+
+        k = self.k_reg(mat)
+        beta = F.softplus(self.beta_reg(mat))
+        g = torch.sigmoid(self.g_reg(mat))
+        s = torch.softmax(self.s_reg(mat), dim=1)
+        gamma = 1 + F.softplus(self.gamma_reg(mat))
+
         # Read from memory
-        w = self._address_memory(k, beta, g, s, gamma, w_prev)
+        w = self.memory.address(k, beta, g, s, gamma, w_prev) #self._address_memory(k, beta, g, s, gamma, w_prev)
         r_ = self.memory.read(w)
         r = r_.clone()
         return r, w
@@ -102,6 +169,28 @@ class NTMWriteHead(NTMHeadBase):
         
         self.write_lengths  = [self.M, 1, 1, 3, 1, self.M, self.M]
         self.fc_write = nn.Linear(controller_size, sum(self.write_lengths))
+        k_len, beta_len, g_len, s_len, gamma_len, e_len, a_len = self.write_lengths
+        
+        # regressor for "k"
+        self.k_reg = SimpleRegressor(controller_size, k_len)
+
+        # regressor for "beta"
+        self.beta_reg = SimpleRegressor(controller_size, beta_len)
+
+        # regressor for "g"
+        self.g_reg = SimpleRegressor(controller_size, g_len)
+
+        # regressor for "s"
+        self.s_reg = SimpleRegressor(controller_size, s_len)
+        
+        # regressor for "gamma"
+        self.gamma_reg = SimpleRegressor(controller_size, gamma_len)
+
+        # "regressor for e"
+        self.e_reg = SimpleRegressor(controller_size, e_len)
+        
+        # regressor for "a"
+        self.a_reg = SimpleRegressor(controller_size, a_len)
         self.reset_parameters()
         
     def create_new_state(self, batch_size):
@@ -115,14 +204,24 @@ class NTMWriteHead(NTMHeadBase):
         return False
     
     def forward(self, embeddings, w_prev):
-        o = self.fc_write(embeddings)
-        k, beta, g, s, gamma, e, a = _split_cols(o, self.write_lengths)
-        
+        # o = self.fc_write(embeddings)
+        # k, beta, g, s, gamma, e, a = _split_cols(embeddings.clone(), self.write_lengths)
+        mat = embeddings.clone()
+
+        k = self.k_reg(mat)
+        beta = F.softplus(self.beta_reg(mat))
+        g = torch.sigmoid(self.g_reg(mat))
+        s = torch.softmax(self.s_reg(mat), dim=1)
+        gamma = 1 + F.softplus(self.gamma_reg(mat))
+
+        e = torch.sigmoid(self.e_reg(mat))
+        a = self.a_reg(mat) 
+
         # e should be in [0, 1] 
-        e = torch.sigmoid(e)
+        # e = torch.sigmoid(e)
         
         # write to memory
-        w = self._address_memory(k, beta, g, s, gamma, w_prev)
+        w = self.memory.address(k, beta, g, s, gamma, w_prev) #self._address_memory(k, beta, g, s, gamma, w_prev)
         self.memory.write(w, e, a)
         
         return w
