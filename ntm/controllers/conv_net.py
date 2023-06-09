@@ -4,9 +4,8 @@ from torch.nn import Parameter
 import numpy as np
 from torchvision.models.resnet import resnet50
 from .base import BaseController
-
 class ConvBlock(nn.Module):
-    def __init__(self, input_channels: int, out_channels: int, kernel_size: tuple = (3, 3), padding="same"):
+    def __init__(self, input_channels: int, out_channels: int, kernel_size: tuple = (3, 3)):
         """Basic Conv Block with convolution layer, etc.
 
         Args:
@@ -15,12 +14,12 @@ class ConvBlock(nn.Module):
             kernel_size (tuple, optional): _description_. Defaults to (3, 3).
         """
         super().__init__()
+        
         self.input_channels = input_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
-        self.padding = padding
         
-        self.conv = nn.Conv2d(self.input_channels, self.out_channels, self.kernel_size, self.padding)
+        self.conv = nn.Conv2d(self.input_channels, self.out_channels, self.kernel_size)
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(self.kernel_size)
         self.dropout = nn.Dropout2d()
@@ -39,7 +38,7 @@ class ConvBlock(nn.Module):
         return f"ConvBlock({self.input_channels, self.out_channels, self.kernel_size})"
 
 
-class ConvNetController(BaseController):
+class ConvNetController(nn.Module):
     def __init__(self, num_inputs:int, num_layers:int) -> None:
         super().__init__()
         self.num_inputs = num_inputs
@@ -64,19 +63,15 @@ class ConvNetController(BaseController):
         #     nn.ReLU()
         # ]
         self.model_ = nn.Sequential(
-            # nn.Linear(25, 100),
-            # nn.Linear(100, 200),
-            # nn.Linear(200, 400)
-            
             ConvBlock(self.num_inputs, 32, (2,2)),
             # ConvBlock(32, 32, (2,2)),
-            # ConvBlock(32, 64, (2,2))
-            ConvBlock(32, 64, (2, 2)),
-            ConvBlock(64, 128, (2, 2)),
-            ConvBlock(128, 256, (2, 2))
+            ConvBlock(32, 64, (2,2))
+            # ConvBlock(32, 64),
+            # ConvBlock(64, 128),
+            # ConvBlock(128, 256)
         )
         self.flatten = nn.Flatten()
-        self.fc_ = nn.Linear(256, 1024, device=self.device_)
+        # self.fc_ = nn.Linear(64, 44, device=self.device_)
         # model_ = resnet50(pretrained=True)
         # self.feature_extractor = nn.Sequential(*list(model_.children())[:-1]).to(self.device_)
         
@@ -88,13 +83,7 @@ class ConvNetController(BaseController):
             # )
             # nn.LazyLinear(out_features=20, device=self.device_),
             # nn.Linear(20, self.num_outputs, device=self.device_)
-
-    def init_sequence(self, batch_size):
-        for p in self.model_.parameters():
-            if p.dim() == 1:
-                nn.init.constant_(p, 0)
-            else:
-                nn.init.kaiming_uniform_(p)   
+            
 
 
     def forward(self, x, training:bool=True):
@@ -111,17 +100,10 @@ class ConvNetController(BaseController):
         # y = ConvBlock(32, 64)(x2)
         # print(y.shape)
         
-        x = x.squeeze() if x.ndim >= 4 else x
-
-        # print(x.size())
         y = self.model_(x)
-        y = self.flatten(y)
-        outp = self.fc_(y)
-        return outp
 
-
-    def __name__(self):
-        return "ConvNetController"
+        # outp = self.fc_(y)
+        return self.flatten(y)
 
 
 

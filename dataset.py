@@ -1,5 +1,6 @@
 from headers import *
 from config import *
+from preprocess.feature_generator import get_histogram_pixels
 
 
 
@@ -44,7 +45,21 @@ class dataset(torch.utils.data.Dataset):
         image_linear_arr = torch.nn.Flatten()(image_)
         
         return image_linear_arr, label #image_.unsqueeze(0), label
-    
+
+
+class HistDataset(dataset):
+    def __init__(self, annotations_file, img_dir, num_classes, lstm=False):
+        super().__init__(annotations_file, img_dir, num_classes, lstm)
+        self.transforms_ = get_histogram_pixels
+
+    def __getitem__(self, index):
+        img_path = os.path.join(self.img_dir, self.images_csv[index, 0])
+        image = cv2.imread(img_path)
+        image_ = self.transforms_(image)
+        label = self.images_csv.iloc[index, 1]
+        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=44)
+        return torch.from_numpy(np.array(image_)), label
+
     
 # defining dataset
 class PreGeneratedDataset(torch.utils.data.Dataset):
@@ -57,7 +72,8 @@ class PreGeneratedDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         label = self.dataframe.iloc[index, 1].astype(dtype=int)
         features = self.dataframe.iloc[index, 2:].to_numpy()
-        return torch.from_numpy(features.astype("float")), torch.tensor(label)
+        label = torch.nn.functional.one_hot(torch.tensor(label).to(torch.int64), num_classes=44)
+        return torch.from_numpy(features.astype("float")), label
     
 
 def dataloader(dataset, batch_size):

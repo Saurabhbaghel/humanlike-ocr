@@ -39,6 +39,12 @@ class NTMMemory(nn.Module):
         self.batch_size = batch_size
         self.memory = self.mem_bias.clone().repeat(batch_size, 1, 1)
         
+    def expand(self, padding):
+        """
+        Expands the memory
+        """
+        self.memory = F.pad(self.memory, padding)
+
     def size(self):
         return self.N, self.M
     
@@ -98,4 +104,4 @@ class NTMMemory(nn.Module):
     def _sharpen(self, w_hat, gamma):
         w = w_hat ** gamma
         w = torch.div(w, torch.sum(w, dim=1).view(-1, 1) + 1e-16)
-        return w         
+        return w
